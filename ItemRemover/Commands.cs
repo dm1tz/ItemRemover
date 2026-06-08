@@ -28,9 +28,13 @@ internal static class Commands {
 			case "REMOVEINVENTORY&" or "RMI&" when args.Length > 3:
 				return await ResponseRemoveInventoryByAssetRarity(access, bot, args[1], args[2], Utilities.GetArgsAsText(args, 3, ",")).ConfigureAwait(false);
 			case "REMOVEITEM" or "RMIT" when args.Length > 4:
-				return await ResponseRemoveItem(access, args[1], args[2], args[3], args[4]).ConfigureAwait(false);
+				return await ResponseRemoveItem(access, args[1], args[2], args[3], Utilities.GetArgsAsText(args, 4, ",")).ConfigureAwait(false);
 			case "REMOVEITEM" or "RMIT" when args.Length > 3:
-				return await ResponseRemoveItem(access, bot, args[1], args[2], args[3]).ConfigureAwait(false);
+				return await ResponseRemoveItem(access, bot, args[1], args[2], Utilities.GetArgsAsText(args, 3, ",")).ConfigureAwait(false);
+			case "REMOVEITEM*" or "RMIT*" when args.Length > 4:
+				return await ResponseRemoveItemByAssetName(access, args[1], args[2], args[3], Utilities.GetArgsAsText(args, 4, ",")).ConfigureAwait(false);
+			case "REMOVEITEM*" or "RMIT*" when args.Length > 3:
+				return await ResponseRemoveItemByAssetName(access, bot, args[1], args[2], Utilities.GetArgsAsText(args, 3, ",")).ConfigureAwait(false);
 			default:
 				return null;
 		}
@@ -147,9 +151,10 @@ internal static class Commands {
 		return responses.Count > 0 ? string.Join(Environment.NewLine, responses) : null;
 	}
 
-	private static async Task<string?> ResponseRemoveItem(EAccess access, Bot bot, string targetItemIDs, string targetAppID, string targetContextID) {
+	private static async Task<string?> ResponseRemoveItem(EAccess access, Bot bot, string targetAppID, string targetContextID, string targetItemIDs) {
 		ArgumentException.ThrowIfNullOrEmpty(targetAppID);
 		ArgumentException.ThrowIfNullOrEmpty(targetContextID);
+		ArgumentException.ThrowIfNullOrEmpty(targetItemIDs);
 
 		if (access < EAccess.Master) {
 			return null;
@@ -158,14 +163,14 @@ internal static class Commands {
 		string[] targets = targetItemIDs.Split(SharedInfo.ListElementSeparators, StringSplitOptions.RemoveEmptyEntries);
 
 		if (targets.Length == 0) {
-			return bot.Commands.FormatBotResponse(string.Format(CultureInfo.CurrentCulture, Strings.ErrorIsEmpty, nameof(targets)));
+			return bot.Commands.FormatBotResponse(string.Format(CultureInfo.CurrentCulture, Strings.ErrorIsEmpty, nameof(targetItemIDs)));
 		}
 
 		HashSet<ulong> itemIDs = [];
 
 		foreach (string target in targets) {
 			if (!ulong.TryParse(target, out ulong itemID) || (itemID == 0)) {
-				return bot.Commands.FormatBotResponse(string.Format(CultureInfo.CurrentCulture, Strings.ErrorParsingObject, nameof(targets)));
+				return bot.Commands.FormatBotResponse(string.Format(CultureInfo.CurrentCulture, Strings.ErrorParsingObject, nameof(itemIDs)));
 			}
 
 			_ = itemIDs.Add(itemID);
@@ -179,7 +184,7 @@ internal static class Commands {
 			return bot.Commands.FormatBotResponse(string.Format(CultureInfo.CurrentCulture, Strings.ErrorParsingObject, nameof(contextID)));
 		}
 
-		string result = await RemovalHandler.RemoveInventory(bot, appID, contextID, item => itemIDs.Contains(item.AssetID)).ConfigureAwait(false);
+		string result = await RemovalHandler.RemoveInventory(bot, appID, contextID, asset => itemIDs.Contains(asset.AssetID)).ConfigureAwait(false);
 
 		return bot.Commands.FormatBotResponse(result);
 	}
@@ -205,7 +210,56 @@ internal static class Commands {
 
 		return responses.Count > 0 ? string.Join(Environment.NewLine, responses) : null;
 	}
+	private static async Task<string?> ResponseRemoveItemByAssetName(EAccess access, Bot bot, string targetAppID, string targetContextID, string targetAssetNames) {
+		ArgumentException.ThrowIfNullOrEmpty(targetAppID);
+		ArgumentException.ThrowIfNullOrEmpty(targetContextID);
+		ArgumentException.ThrowIfNullOrEmpty(targetAssetNames);
 
+		if (access < EAccess.Master) {
+			return null;
+		}
+
+		if (!uint.TryParse(targetAppID, out uint appID) || (appID == 0)) {
+			return bot.Commands.FormatBotResponse(string.Format(CultureInfo.CurrentCulture, Strings.ErrorParsingObject, nameof(appID)));
+		}
+
+		if (!ulong.TryParse(targetContextID, out ulong contextID) || (contextID == 0)) {
+			return bot.Commands.FormatBotResponse(string.Format(CultureInfo.CurrentCulture, Strings.ErrorParsingObject, nameof(contextID)));
+		}
+
+		string[] assetNames = [.. targetAssetNames.Split(SharedInfo.ListElementSeparators, StringSplitOptions.RemoveEmptyEntries).Select(name => name.Replace('_', ' ')).Where(name => !string.IsNullOrWhiteSpace(name))];
+
+		if (assetNames.Length == 0) {
+			return bot.Commands.FormatBotResponse(string.Format(CultureInfo.CurrentCulture, Strings.ErrorIsEmpty, nameof(assetNames)));
+		}
+
+		string result = await RemovalHandler.RemoveInventory(bot, appID, contextID, asset => assetNames.Contains(asset.Description!.Name, StringComparer.OrdinalIgnoreCase)).ConfigureAwait(false);
+
+		return bot.Commands.FormatBotResponse(result);
+	}
+
+	private static async Task<string?> ResponseRemoveItemByAssetName(EAccess access, string botNames, string appID, string contextID, string assetNames, ulong steamID = 0) {
+		ArgumentException.ThrowIfNullOrEmpty(botNames);
+		ArgumentException.ThrowIfNullOrEmpty(appID);
+		ArgumentException.ThrowIfNullOrEmpty(contextID);
+		ArgumentException.ThrowIfNullOrEmpty(assetNames);
+
+		if ((steamID != 0) && !new SteamID(steamID).IsIndividualAccount) {
+			throw new ArgumentOutOfRangeException(nameof(steamID));
+		}
+
+		HashSet<Bot>? bots = Bot.GetBots(botNames);
+
+		if ((bots == null) || (bots.Count == 0)) {
+			return access >= EAccess.Master ? Interaction.Commands.FormatStaticResponse(string.Format(CultureInfo.CurrentCulture, Strings.BotNotFound, botNames)) : null;
+		}
+
+		IList<string?> results = await Utilities.InParallel(bots.Select(bot => Task.Run(() => ResponseRemoveItemByAssetName(Interaction.Commands.GetProxyAccess(bot, access, steamID), bot, appID, contextID, assetNames)))).ConfigureAwait(false);
+
+		List<string> responses = [.. results.Where(static result => !string.IsNullOrEmpty(result)).Select(static result => result!)];
+
+		return responses.Count > 0 ? string.Join(Environment.NewLine, responses) : null;
+	}
 
 	private static string? ResponseVersion(EAccess access) {
 		if (access < EAccess.FamilySharing) {
