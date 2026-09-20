@@ -24,15 +24,15 @@ internal static class Commands {
 			case "REMOVEINVENTORY" or "RMI" when args.Length > 2:
 				return await ResponseRemoveInventory(access, bot, args[1], args[2]).ConfigureAwait(false);
 			case "REMOVEINVENTORY&" or "RMI&" when args.Length > 4:
-				return await ResponseRemoveInventoryByAssetRarity(access, args[1], args[2], args[3], Utilities.GetArgsAsText(args, 4, ",")).ConfigureAwait(false);
+				return await ResponseRemoveInventoryByAssetRarity(access, args[1], args[2], args[3], Utilities.GetArgsAsText(args, 4, ","), steamID).ConfigureAwait(false);
 			case "REMOVEINVENTORY&" or "RMI&" when args.Length > 3:
 				return await ResponseRemoveInventoryByAssetRarity(access, bot, args[1], args[2], Utilities.GetArgsAsText(args, 3, ",")).ConfigureAwait(false);
 			case "REMOVEITEM" or "RMIT" when args.Length > 4:
-				return await ResponseRemoveItem(access, args[1], args[2], args[3], Utilities.GetArgsAsText(args, 4, ",")).ConfigureAwait(false);
+				return await ResponseRemoveItem(access, args[1], args[2], args[3], Utilities.GetArgsAsText(args, 4, ","), steamID).ConfigureAwait(false);
 			case "REMOVEITEM" or "RMIT" when args.Length > 3:
 				return await ResponseRemoveItem(access, bot, args[1], args[2], Utilities.GetArgsAsText(args, 3, ",")).ConfigureAwait(false);
 			case "REMOVEITEM*" or "RMIT*" when args.Length > 4:
-				return await ResponseRemoveItemByAssetName(access, args[1], args[2], args[3], Utilities.GetArgsAsText(args, 4, ",")).ConfigureAwait(false);
+				return await ResponseRemoveItemByAssetName(access, args[1], args[2], args[3], Utilities.GetArgsAsText(args, 4, ","), steamID).ConfigureAwait(false);
 			case "REMOVEITEM*" or "RMIT*" when args.Length > 3:
 				return await ResponseRemoveItemByAssetName(access, bot, args[1], args[2], Utilities.GetArgsAsText(args, 3, ",")).ConfigureAwait(false);
 			default:
