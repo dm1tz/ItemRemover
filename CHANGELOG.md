@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/dm1tz/ItemRemover/compare/0.2.0...0.2.1) (2026-09-20)
+
+
+### Bug Fixes
+
+* **commands:** preserve caller identity for multi-bot removal ([#20](https://github.com/dm1tz/ItemRemover/issues/20)) ([6727ba4](https://github.com/dm1tz/ItemRemover/commit/6727ba48ac06408330b444b50114c8b3bb350dc5))
+
 ## [0.2.0](https://github.com/dm1tz/ItemRemover/compare/0.1.0...0.2.0) (2026-06-08)
 
 
